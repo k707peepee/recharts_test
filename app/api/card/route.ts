@@ -5,6 +5,7 @@ const pool = new Pool({
   connectionString: process.env.DB_URL,
 });
 
+//
 // 获取每个node_id的最新power、7天内power变化值、30天内power变化值
 async function getPowerChanges() {
   const query = `
