@@ -10,22 +10,36 @@ const pool = new Pool({
 async function getPowerChanges() {
   const query = `
     WITH latest_data AS (
-        SELECT 
-        node_id,
-        power,
-        power_change_7_days,
-        power_change_10_days,
-        date,
-        ROW_NUMBER() OVER (PARTITION BY node_id ORDER BY date DESC) AS rn
-        FROM f_node_stats
-    )
-    SELECT 
-        node_id,
-        power,
-        power_change_7_days,
-        power_change_10_days
-    FROM latest_data
-    WHERE rn = 1;
+      SELECT 
+          node_id,
+          power,
+          power_change_ratio_7_days,
+          power_change_ratio_10_days,
+          CASE 
+              WHEN power_change_ratio_7_days >= 0 THEN 'increase'
+              ELSE 'decrease'
+          END AS changeType_7_days,
+          CASE 
+              WHEN power_change_ratio_10_days >= 0 THEN 'increase'
+              ELSE 'decrease'
+          END AS changeType_10_days,
+          date,
+          LAG(power, 7) OVER (PARTITION BY node_id ORDER BY date) AS prev_power_7_days,
+          LAG(power, 10) OVER (PARTITION BY node_id ORDER BY date) AS prev_power_10_days,
+          ROW_NUMBER() OVER (PARTITION BY node_id ORDER BY date DESC) AS rn
+      FROM f_node_stats
+  )
+  SELECT 
+      node_id,
+      power,
+      prev_power_7_days,
+      power_change_ratio_7_days,
+      changeType_7_days,
+      prev_power_10_days,
+      power_change_ratio_10_days,
+      changeType_10_days
+  FROM latest_data
+  WHERE rn = 1;
   `;
   return (await pool.query(query)).rows;
 }
